@@ -1,0 +1,9 @@
+[package]
+name = "icc"
+version = "0.1.0"
+authors = ["root"]
+edition = "2018"
+[dependencies]
+lcms2 = "5.4.1"
+kamadak-exif = "0.5.4"
+img-parts = "0.2.3"
