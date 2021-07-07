@@ -1,5 +1,5 @@
 #![allow(unused)]
-
+use image::*;
 extern crate exif;
 use lcms2::*;
 use std::fs::DirEntry;
@@ -27,13 +27,26 @@ impl Image {
             profile
         }
     }
-    fn convert_to(mut self, profile: Profile) -> Result<(), CustomErr> {
+    fn convert_to(mut self, output_profile: Profile) -> Result<(), CustomErr> {
+        let input_profile = match self.profile {
+            Some(profile) => profile,
+            None => {
+                self.profile = Some(default_iccp());
+                self.profile.take().unwrap()
+            }
+        };
         //iterate over pixel transforming every pixel using lcms transform struct
-        unimplemented!()
+        let t = Transform::new(&input_profile, PixelFormat::RGB_8, &output_profile, PixelFormat::RGB_8, Intent::RelativeColorimetric)?;
+        t.transform_in_place(&mut Image::image_buffer(&self.path).unwrap());
+        Ok(())
     }
-    fn image_bufer() -> Result<Vec<u8>, CustomErr> {
+    fn image_buffer(path: &str) -> Result<Vec<u8>, CustomErr> {
         //use image crate to get pixels iterator of an image
-        unimplemented!()
+        //read image to 
+        let mut image = image::io::Reader::open(path)?.decode()?;
+        let buf = image.as_mut_rgb8().unwrap().to_vec();
+        Ok(buf)
+        //unimplemented!()
     }
     fn profile_desc(&self) -> Option<IccpInfo> {
         match &self.profile {
