@@ -3,14 +3,41 @@ use image::*;
 extern crate exif;
 use lcms2::*;
 use std::fs::DirEntry;
+use std::iter::FromIterator;
 use std::{fs, io};
 use std::path::*;
 use img_parts::{ImageICC, jpeg};
 use super::MANAGEABLE_FILE_EXTENSIONS;
 
+
+// impl FromIterator<&[u8]> for Vec<RGB> {
+//     fn from_iter<I: Iterator<Item = RGB>> (iter: I) {
+//     let output = Vec::new();
+//     for i in iter {
+//         output.push(i);
+//     }
+//     output
+//     }
+// }
 //TODO:
 //create custom error struct instead & implement send for it to be able to use multithreading
 pub type CustomErr = Box<dyn std::error::Error>;
+#[derive(Copy, Clone, Debug)]
+struct RGB {
+    r: u8,
+    g: u8,
+    b: u8
+}
+
+impl RGB {
+    fn new(slice: &[u8]) -> Self {
+        Self {
+            r: slice[0],
+            g: slice[1],
+            b: slice[2]
+        }
+    }
+}
 struct Image {
     path: String,
     profile: Option<Profile>
@@ -35,16 +62,29 @@ impl Image {
                 self.profile.take().unwrap()
             }
         };
-        //iterate over pixel transforming every pixel using lcms transform struct
-        let t = Transform::new(&input_profile, PixelFormat::RGB_8, &output_profile, PixelFormat::RGB_8, Intent::RelativeColorimetric)?;
-        t.transform_in_place(&mut Image::image_buffer(&self.path).unwrap());
+        let mut file = image::io::Reader::open(&self.path)?.with_guessed_format()?.decode()?;
+        // let mut input = file
+        // //.decode()?
+        // .as_bytes()
+        // //.to_vec()
+        // .chunks(3)
+        // .map(|rgb| {
+        //     //let pix =rgb.to_vec();
+        //     RGB::new(rgb)
+        // })
+        // .collect::<Vec<RGB>>();
+        // //iterate over pixel transforming every pixel using lcms transform struct
+        // let t //: Transform<Vec<u8>, Vec<u8>, GlobalContext, AllowCache> 
+        // = Transform::new(&input_profile, PixelFormat::RGB_8, &input_profile, PixelFormat::RGB_8, Intent::RelativeColorimetric)?;
+        // t.transform_in_place(&mut input);
+        file.save(&self.path)?;
         Ok(())
     }
-    fn image_buffer(path: &str) -> Result<Vec<u8>, CustomErr> {
+    fn image_buffer(path: &str) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>, CustomErr> {
         //use image crate to get pixels iterator of an image
         //read image to 
         let mut image = image::io::Reader::open(path)?.decode()?;
-        let buf = image.as_mut_rgb8().unwrap().to_vec();
+        let buf = image.as_mut_rgb8().unwrap().to_owned();
         Ok(buf)
         //unimplemented!()
     }
@@ -65,7 +105,7 @@ impl IccpInfo {
     fn new(profile: &Profile) -> Self {
         Self {
             description: profile.info(InfoType::Description, Locale::none()),
-            model: profile.info(InfoType::Description, Locale::none())
+            model: profile.info(InfoType::Model, Locale::none())
         }
     }
 }
@@ -100,6 +140,7 @@ pub fn process_file_inp(path: &PathBuf) -> Result<(), CustomErr> {
     let image = Image::new(path.to_str().unwrap());
     match image.profile_desc() {
         Some(IccpInfo { description: d, model: m} ) => {
+            println!("file: {:?}, desc: {:?}, model: {:?}", path, d, m);
             //TODO:
             //analyze d & m
             //launch image.convert() if needed
@@ -107,6 +148,7 @@ pub fn process_file_inp(path: &PathBuf) -> Result<(), CustomErr> {
             Ok(())
         },
         None => {
+            println!("no profile found");
             image.convert_to(default_iccp())?;
             Ok(())
         }
