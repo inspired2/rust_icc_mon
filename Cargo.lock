@@ -203,6 +203,7 @@ dependencies = [
  "image",
  "img-parts",
  "lcms2",
+ "qcms",
  "rexiv2",
 ]
 
@@ -404,6 +405,12 @@ checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
 dependencies = [
  "unicode-xid",
 ]
+
+[[package]]
+name = "qcms"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64f48c79ead46b8293ed455e0dbca4e06a43c6d7078ff4ba0a0c971e77e9c367"
 
 [[package]]
 name = "quote"
