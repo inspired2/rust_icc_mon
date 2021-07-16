@@ -1,27 +1,87 @@
 use super::MANAGEABLE_FILE_EXTENSIONS;
-use image::DynamicImage;
-use image::EncodableLayout;
-use image::ImageOutputFormat;
+use image::{EncodableLayout, ImageFormat, ImageOutputFormat};
 use img_parts::DynImage;
 use img_parts::jpeg::Jpeg;
-use lcms2::Profile;
+use lcms2::{InfoType, Locale, Profile};
 use qcms;
 use rexiv2::{self, Metadata};
 use webp;
+use std::marker::{Send, Sync};
 
 use std::fs;
 use std::path::*;
 pub use img_parts::{Bytes, ImageICC};
 
-enum ImageType {
+pub enum ImageType {
     Jpeg,
     Webp,
     Tiff,
-    Heic,
     Bmp,
     Other,
 }
-pub type CustomErr = Box<dyn std::error::Error>;
+pub enum IccpType {
+    IECSrgb,
+    AdobeRGB,
+    Other
+}
+pub struct Iccp {
+    data: Profile,
+    desc: IccpType,
+    len: usize
+}
+impl Iccp {
+    pub fn new(image: &Image) -> Option<Self> {
+        let profile_bytes = image.embedded_profile_bytes();
+        let desc: IccpType;
+        let len: usize;
+        let data: Option<Profile>;
+        match profile_bytes {
+            Some(bytes) => {
+                data = Profile::new_icc(&bytes[..]).ok();
+                len = bytes.len();    
+            },
+            _=> return None
+        }
+        if let Some(profile) = data {
+            match profile.info(InfoType::Description, Locale::none()) {
+                Some(s) => {
+                    let s = s.to_lowercase();
+                    if s.contains("iec") && s.contains("srgb") {
+                        desc = IccpType::IECSrgb;
+                    } else if 
+                        s.contains("adobe") && s.contains("rgb") {
+                            desc = IccpType::AdobeRGB;
+                        }
+                     else {
+                        desc = IccpType::Other;
+                    }
+                    Some(Self {
+                        desc, len, data: profile
+                    })
+
+                },
+                _=> return None
+            }
+        } else {
+            return None
+        }
+
+    }
+    pub fn profile_type(&self) -> &IccpType {
+        &self.desc
+    }
+    pub fn data (self) -> Profile {
+        self.data
+    }
+    pub fn profile_size(&self) -> usize {
+        self.len
+    }
+}
+
+pub type CustomErr = Box<dyn std::error::Error + Send + Sync>;
+// trait MyMarker {}
+// impl MyMarker for CustomErr {}
+// unsafe impl<M: MyMarker + ?Sized> Send for M {}
 pub struct Image {
     pub decoded: img_parts::DynImage,
     pub path: Box<PathBuf>,
@@ -77,13 +137,14 @@ impl Image {
 //         Ok(self)
     }
 }
+
 pub trait Meta {
     fn metadata(&self) -> Option<rexiv2::Metadata>;
     fn embedded_profile_bytes(&self) -> Option<img_parts::Bytes>;
     fn is_manageable(&self) -> bool;
-    fn iccp(&self) -> Option<lcms2::Profile>;
-    fn img_type(&self) -> ImageType;
-    //fn decoded(&self) -> Option<Jpeg>;
+    fn iccp(&self) -> Option<Iccp>;
+    fn img_format(&self) -> Option<ImageFormat>;
+
 }
 impl Meta for Image {
     fn metadata(&self) -> Option<Metadata> {
@@ -104,36 +165,22 @@ impl Meta for Image {
             _=> false
         }
     }
-    fn iccp(&self) -> Option<lcms2::Profile> {
-        let profile_bytes = self.embedded_profile_bytes();
-        match profile_bytes {
-            Some(bytes) => Profile::new_icc(&bytes[..]).ok(),
-            _=> None
-        }
+    fn iccp(&self) -> Option<Iccp> {
+        Iccp::new(self)
     }
-    fn img_type(&self) -> ImageType {
-        match image::guess_format(self.bytes.as_bytes()) {
-            Ok(image::ImageFormat::Jpeg) => ImageType::Jpeg,
-            Ok(image::ImageFormat::WebP) => ImageType::Webp,
-            Ok(image::ImageFormat::Bmp) => ImageType::Bmp,
-            Ok(image::ImageFormat::Tiff) => ImageType::Tiff,
-            _ => ImageType::Other
-        }
+    fn img_format(&self) -> Option<image::ImageFormat> {
+        image::guess_format(self.bytes.as_bytes()).ok()
     }
-    // fn decoded(&self) -> Option<Jpeg> {
-    //     decode_jpeg(self.bytes.to_owned()).ok()
-    // }
 }
 
 fn read_to_buf(path: &PathBuf) -> Result<Vec<u8>, CustomErr> {
     let buffer = fs::read(&**path)?;
     Ok(buffer)
 }
-pub fn print_all_exif_tags(meta: &Metadata) {
-    match meta.get_exif_tags() {
-        Ok(tags_vec) => tags_vec.iter().for_each(|tag| println!("tag: {}", tag)),
-        _=>{}
+// pub fn print_all_exif_tags(meta: &Metadata) {
+//     match meta.get_exif_tags() {
+//         Ok(tags_vec) => tags_vec.iter().for_each(|tag| println!("tag: {}", tag)),
+//         _=>{}
 
-    }
-
-}
+//     }
+// }

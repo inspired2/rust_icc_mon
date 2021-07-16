@@ -12,7 +12,7 @@ use args::*;
 
 pub static MANAGEABLE_FILE_EXTENSIONS: [&str; 4] = ["jpg", "tiff", "jpeg", "webp"];
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), CustomErr> {
     let args = ArgsInput::new(env::args());
     args.process()?;
     Ok(())

@@ -50,32 +50,32 @@ pub fn process_image(img: Image) -> Result<Counter, CustomErr> {
     let mut counter = Counter::new();
     let iccp_size = img.embedded_profile_bytes().unwrap_or_default().len();
     let iccp = img.iccp();
-    match &iccp {
-        Some(profile) => {
-            let desc = profile.info(InfoType::Description, Locale::none());
-            match desc {
-                Some(s) if s.to_lowercase().contains("iec") && iccp_size > 3100 => {
-                    println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, s, iccp_size);
-                    counter.total_iecsrgb_profiles += 1;
-                },
-                _=> {
-                    println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, desc.unwrap(), iccp_size);
-                    counter.total_srgb_profiles += 1;
-                }
-            };
-        },
-        None => {
-            counter.total_no_emb_profiles += 1;
-        }
-    }
-    //let img_meta = img.metadata().unwrap();
-    // println!("name: {:?}", img.path.file_name().unwrap_or_default());
-    // println!("exif: {:?}", img_meta.has_exif());
-    // println!("emb icc.len(): {:?}, icc desc: {:?}", img.embedded_profile_bytes().unwrap_or_default().len(), iccp);
-    // println!("***********************************");
-    //analyze metadata & convert if needed
+    // match iccp {
+    //     Some(profile) => {
+    //         let desc = profile.info(InfoType::Description, Locale::none());
+    //         match desc {
+    //             Some(s) if s.to_lowercase().contains("iec") && iccp_size > 3100 => {
+    //                 println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, s, iccp_size);
+    //                 counter.total_iecsrgb_profiles += 1;
+    //             },
+    //             _=> {
+    //                 println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, desc.unwrap(), iccp_size);
+    //                 counter.total_srgb_profiles += 1;
+    //             }
+    //         };
+    //     },
+    //     None => {
+    //         counter.total_no_emb_profiles += 1;
+    //     }
+    // }
+    //match on 
+
+
     //img.save()?;
     //img.convert_we_to_jpeg()?.save()?;
+    let handle = std::thread::spawn(|| img.convert_webp_to_jpeg()?.save());
+    handle.join();
+
     Ok(counter)
 }
 pub fn process_file_inp(path: PathBuf) -> Result<(), CustomErr> {
