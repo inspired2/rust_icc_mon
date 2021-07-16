@@ -1,3 +1,5 @@
+use crate::counter::Counter;
+
 use  super::*;
 
 #[derive(Debug)]
@@ -20,7 +22,7 @@ impl ArgsInput {
     pub fn process(mut self) ->Result<(), CustomErr> {
         match self.options {
             Some (opt) if opt.contains(&"--all".to_string()) => {
-                let counter  = process_dir_inp(&self.path.take().unwrap(), false)?;
+                let counter  = process_dir_inp(&self.path.take().unwrap(), true)?;
                 println!("Counter: {:?}", counter);
                 //process all files in dir
             },

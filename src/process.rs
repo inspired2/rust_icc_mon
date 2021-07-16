@@ -8,7 +8,7 @@ use counter::Counter;
 
 
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
-
+    let mut counter = Counter::new();
     if !path_is_dir(dir) {
         return Err(CustomErr::from(io::Error::new(io::ErrorKind::Other, "input is not a dir")))
     }
@@ -17,7 +17,7 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
         match entry {
             Ok(e) => {
                 if recurse && path_is_dir(e.path().to_str().unwrap()) {
-                    return process_dir_inp(e.path().to_str().unwrap(), true);
+                    counter = counter + process_dir_inp(e.path().to_str().unwrap(), true).unwrap();
                 }
 
                 if (&e).path().is_file() && !fs::symlink_metadata(e.path())?.file_type().is_symlink() {
@@ -27,26 +27,25 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
             Err(_) => {}
         }
     }
-    let images: Vec<JpegImage> = files
+    let images: Vec<Image> = files
         .into_iter()
         .filter_map(|e| 
-            if let Ok(image) = image_meta::JpegImage::new(e.path()) {
+            if let Ok(image) = image_meta::Image::new(e.path()) {
                 Some(image)
             } else {
-                println!("cud not create image from: {:?}", e);
+                //println!("cud not create image from: {:?}", e);
                 None
             })
         .filter(|img| img.is_manageable())
         .collect();
         //.for_each(|img| { process_image(img).unwrap_or(()) });
-    let mut counter = Counter::new();
         for image in images {
             let counter1 = process_image(image)?;
             counter = counter + counter1;
     }
     Ok(counter)
 }
-pub fn process_image(img: JpegImage) -> Result<Counter, CustomErr> {
+pub fn process_image(img: Image) -> Result<Counter, CustomErr> {
     //check if there's any info about iccp
     let mut counter = Counter::new();
     let iccp_size = img.embedded_profile_bytes().unwrap_or_default().len();
@@ -55,27 +54,32 @@ pub fn process_image(img: JpegImage) -> Result<Counter, CustomErr> {
         Some(profile) => {
             let desc = profile.info(InfoType::Description, Locale::none());
             match desc {
-                Some(s) if s.to_lowercase().contains("iec") => {
+                Some(s) if s.to_lowercase().contains("iec") && iccp_size > 3100 => {
+                    println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, s, iccp_size);
                     counter.total_iecsrgb_profiles += 1;
                 },
-                _=> counter.total_srgb_profiles += 1
+                _=> {
+                    println!("image: {:?}, profile: {:?}, profile_size: {:?}",img.path, desc.unwrap(), iccp_size);
+                    counter.total_srgb_profiles += 1;
+                }
             };
         },
         None => {
             counter.total_no_emb_profiles += 1;
         }
     }
-    let img_meta = img.metadata().unwrap();
-    println!("name: {:?}", img.path.file_name().unwrap_or_default());
-    println!("exif: {:?}", img_meta.has_exif());
-    println!("emb icc.len(): {:?}, icc desc: {:?}", img.embedded_profile_bytes().unwrap_or_default().len(), iccp);
-    println!("***********************************");
+    //let img_meta = img.metadata().unwrap();
+    // println!("name: {:?}", img.path.file_name().unwrap_or_default());
+    // println!("exif: {:?}", img_meta.has_exif());
+    // println!("emb icc.len(): {:?}, icc desc: {:?}", img.embedded_profile_bytes().unwrap_or_default().len(), iccp);
+    // println!("***********************************");
     //analyze metadata & convert if needed
     //img.save()?;
+    //img.convert_we_to_jpeg()?.save()?;
     Ok(counter)
 }
 pub fn process_file_inp(path: PathBuf) -> Result<(), CustomErr> {
-    let image = image_meta::JpegImage::new(path)?;
+    let image = image_meta::Image::new(path)?;
     process_image(image)?;
     Ok(())
 }

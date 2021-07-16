@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Counter {
     pub total_iecsrgb_profiles: usize,
     pub total_srgb_profiles: usize,
