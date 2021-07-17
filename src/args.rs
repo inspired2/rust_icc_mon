@@ -1,9 +1,9 @@
-use  super::*;
+use super::*;
 
 #[derive(Debug)]
 pub struct ArgsInput {
     path: Option<String>,
-    options: Option<Vec<String>>
+    options: Option<Vec<String>>,
 }
 impl ArgsInput {
     pub fn new(mut args: env::Args) -> Self {
@@ -13,22 +13,29 @@ impl ArgsInput {
         if args.len() > 1 {
             options = args.map(|s| Some(s)).collect();
         }
-        Self {
-            path, options
-        }
+        Self { path, options }
     }
-    pub fn process(mut self) ->Result<(), CustomErr> {
+    pub fn process(mut self) -> Result<(), CustomErr> {
         match self.options {
-            Some (opt) if opt.contains(&"--all".to_string()) => {
-                let counter  = process_dir_inp(&self.path.take().unwrap(), true)?;
-                println!("Counter: {:?}", counter);
-                //process all files in dir
-            },
+            Some(opt) => {
+                if opt.contains(&"adobe-allow".to_string()) {
+                    unsafe {
+                        ALLOW_ADOBE_RGB = true;
+                    }
+                }
+                if opt.contains(&"--all".to_string()) {
+                    let counter = process_dir_inp(&self.path.take().unwrap(), true)?;
+                    println!("Counter: {:?}", counter);
+                    //process all files in dir
+                } else {
+                    let path = Path::new(&self.path.take().unwrap()).canonicalize()?;
+                    process_file_inp(path)?
+                }
+            }
             _ => {
                 let path = Path::new(&self.path.take().unwrap()).canonicalize()?;
                 process_file_inp(path)?
             }
-    
         }
         Ok(())
     }

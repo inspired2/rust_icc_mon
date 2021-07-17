@@ -9,7 +9,7 @@ impl Counter {
         Self {
             total_iecsrgb_profiles: 0,
             total_no_emb_profiles: 0,
-            total_srgb_profiles: 0
+            total_srgb_profiles: 0,
         }
     }
 }
