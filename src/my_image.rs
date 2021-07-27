@@ -103,7 +103,7 @@ impl Image {
     }
     pub fn set_IECsRGB_profile(mut self) -> Result<Image, CustomErr> {
         self.decoded
-            .set_icc_profile(Some(Iccp::default().to_bytes()));
+            .set_icc_profile(Some(Iccp::from_file("sRGB.icm")?.to_bytes()));
         Ok(self)
     }
 }

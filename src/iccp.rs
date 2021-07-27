@@ -29,6 +29,7 @@ impl Iccp {
             }
             _ => return None,
         }
+
         if let Some(profile) = data {
             match profile.info(InfoType::Description, Locale::none()) {
                 Some(s) => {
@@ -76,4 +77,38 @@ impl Iccp {
         let profile = self.data;
         Bytes::from(profile.icc().unwrap())
     }
+    pub fn from_file(path: &str) -> Result<Self, CustomErr> {
+        let reader = std::fs::read(path)?;
+        let len = reader.len();
+        let profile = Profile::new_icc(&reader)?;
+        let desc = qualify_profile(&profile).unwrap();
+        Ok(Self {
+            data: profile,
+            desc,
+            len
+        })
+
+    }
 }
+pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
+    let desc: IccpType;
+    match p.info(InfoType::Description, Locale::none()) {
+        Some(s) => {
+            let s = s.to_lowercase();
+            if s.contains("iec") && s.contains("srgb") {
+                desc = IccpType::IECSrgb;
+            } else if s.contains("adobe") && s.contains("rgb") {
+                desc = IccpType::AdobeRGB;
+            } else if s.contains("srgb") && s.contains("google") {
+                desc = IccpType::GoogleSrgb;
+            } else if s.contains("srgb") {
+                desc = IccpType::OtherSrgb;
+            } else {
+                desc = IccpType::Other;
+            }
+            Some(desc)
+        }
+        _ => return None,
+    }
+}
+
