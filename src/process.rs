@@ -1,12 +1,13 @@
+#![allow(unused)]
+use super::CustomErr;
+use super::*;
+use counter::Counter;
+use image_meta::*;
 use std::{
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
 };
-use super::*;
-use counter::Counter;
-use image_meta::*;
-use super::CustomErr;
 
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
     let mut counter = Counter::new();
@@ -36,7 +37,7 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
     let images: Vec<Image> = files
         .into_iter()
         .filter_map(|e| {
-            if let Ok(image) = Image::new(e.path()) {
+            if let Ok(image) = Image::read(e.path()) {
                 Some(image)
             } else {
                 //println!("cud not create image from: {:?}", e);
@@ -53,35 +54,46 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
     Ok(counter)
 }
 pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
+    println!("processing image {:?}", ImageInfo::new(&img));
+    let old_path = img.path.to_owned();
+    let mut ext_changed = false;
+    let mut modified_flag = false;
+    let counter = Counter::new();
+
     match img.img_format() {
-        Some(ImageFormat::Jpeg) => {}//proceed
-        _=> {}//convert: img=img.convert_to_jpeg()?
-    }
+        None => return Err(custom_err::from("unknown image format")),
+        Some(ImageFormat::Jpeg) => {} //proceed
+        Some(_) => {
+            img = img.convert_format()?;
+            modified_flag = true;
+            ext_changed = true;
+        }
+    };
+
     unsafe {
         let working_profile_type = match ALLOW_ADOBE_RGB {
             true => IccpType::AdobeRGB,
             false => IccpType::IECSrgb,
         };
     }
-    let mut counter = Counter::new();
-    let img_fmt: ImageFormat;
-    if let Some(fmt) = img.img_format() {
-        img_fmt = fmt;
-    } else {
-        return Ok(counter);
-    };
-  
+
     match img.iccp() {
         Some(profile) => {
-            match profile.profile_type() {
-                &IccpType::AdobeRGB => {}, //if ALLOW_ADOBE_RGB => do nothing, else convert
-                &IccpType::IECSrgb => {} //do nothing
-                &IccpType::OtherSrgb 
-                | &IccpType::Other
-                | &IccpType::GoogleSrgb => {} //convert
+            match &profile.profile_type() {
+                IccpType::AdobeRGB => {} //if ALLOW_ADOBE_RGB => do nothing, else convert
+                IccpType::IECSrgb => {}  //do nothing
+                IccpType::OtherSrgb | IccpType::Other | IccpType::GoogleSrgb => {
+                    img = img.set_IECsRGB_profile()?;
+                    modified_flag = true;
+                    //img.convert_iccp_and_save(&profile.data(), &Iccp::default())?;
+                    //return Ok(counter);
+                } //convert
             }
         }
-        None => {}//do nothing?
+        None => {
+            img = img.set_IECsRGB_profile()?;
+            modified_flag = true;
+        } //
     }
     // match iccp {
     //     Some(profile) => {
@@ -105,13 +117,16 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
 
     //img.save()?;
     //img.convert_we_to_jpeg()?.save()?;
-    let handle = std::thread::spawn(|| img.convert_webp_to_jpeg()?.save());
-    handle.join();
-
+    if modified_flag == true {
+        img.save()?;
+    }
+    if ext_changed {
+        fs::remove_file(*old_path)?;
+    }
     Ok(counter)
 }
 pub fn process_file_inp(path: PathBuf) -> Result<(), CustomErr> {
-    let image = Image::new(path)?;
+    let image = Image::read(path)?;
     process_image(image)?;
     Ok(())
 }
@@ -119,9 +134,3 @@ pub fn process_file_inp(path: PathBuf) -> Result<(), CustomErr> {
 fn path_is_dir(input: &str) -> bool {
     Path::new(input).is_dir()
 }
-// fn path_is_symlink(path: &PathBuf) -> bool {
-//     match fs::symlink_metadata(path) {
-//         Ok(meta) => meta.file_type().is_symlink(),
-//         _=> false
-//     }
-// }

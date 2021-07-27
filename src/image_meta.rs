@@ -1,9 +1,9 @@
 use super::*;
 pub use image::{EncodableLayout, ImageFormat, ImageOutputFormat};
 
+pub use img_parts::{Bytes, ImageICC};
 use std::fs;
 use std::path::*;
-pub use img_parts::{Bytes, ImageICC};
 
 pub trait Meta {
     fn metadata(&self) -> Option<rexif::ExifData>;
@@ -11,25 +11,22 @@ pub trait Meta {
     fn is_manageable(&self) -> bool;
     fn iccp(&self) -> Option<Iccp>;
     fn img_format(&self) -> Option<ImageFormat>;
-
 }
 impl Meta for Image {
     fn metadata(&self) -> Option<rexif::ExifData> {
         if let Ok(meta) = rexif::parse_buffer(&self.bytes) {
-            return Some(meta)
+            return Some(meta);
         }
         None
     }
-    
+
     fn embedded_profile_bytes(&self) -> Option<img_parts::Bytes> {
         self.decoded.icc_profile()
     }
     fn is_manageable(&self) -> bool {
         match self.path.extension() {
-            Some(path) => {
-                MANAGEABLE_FILE_EXTENSIONS.contains(&path.to_str().unwrap())
-            },
-            _=> false
+            Some(path) => MANAGEABLE_FILE_EXTENSIONS.contains(&path.to_str().unwrap()),
+            _ => false,
         }
     }
     fn iccp(&self) -> Option<Iccp> {
