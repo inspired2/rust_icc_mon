@@ -12,10 +12,7 @@ use std::{
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
     let mut counter = Counter::new();
     if !path_is_dir(dir) {
-        return Err(CustomErr::from(io::Error::new(
-            io::ErrorKind::Other,
-            "input is not a dir",
-        )));
+        return Err(custom_err::from("input is not a dir"))
     }
     let mut files: Vec<DirEntry> = Vec::new();
     for entry in Path::new(dir).read_dir()? {
