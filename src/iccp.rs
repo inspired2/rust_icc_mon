@@ -89,6 +89,12 @@ impl Iccp {
         })
 
     }
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, CustomErr> {
+        let data = lcms2::Profile::new_icc(buf)?;
+        let desc = iccp::qualify_profile(&data).unwrap();
+        let len = buf.len();
+        Ok(Self{data, desc, len})
+    }
 }
 pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
     let desc: IccpType;

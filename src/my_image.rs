@@ -6,6 +6,7 @@ use lcms2::{Intent, PixelFormat, Profile};
 use std::path::PathBuf;
 
 
+
 pub struct Image {
     pub decoded: img_parts::DynImage,
     pub path: Box<PathBuf>,
@@ -103,7 +104,7 @@ impl Image {
     }
     pub fn set_IECsRGB_profile(mut self) -> Result<Image, CustomErr> {
         self.decoded
-            .set_icc_profile(Some(Iccp::from_file("sRGB.icm")?.to_bytes()));
+            .set_icc_profile(Some(Bytes::from_static(&SRGB_IEC)));
         Ok(self)
     }
 }
