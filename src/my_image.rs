@@ -1,4 +1,3 @@
-#![allow(non_snake_case)]
 use super::*;
 use img_parts::jpeg::Jpeg;
 use img_parts::DynImage;
@@ -102,6 +101,7 @@ impl Image {
         t.transform_in_place(&mut pixels);
         Ok(())
     }
+    #[allow(non_snake_case)]
     pub fn set_IECsRGB_profile(mut self) -> Result<Image, CustomErr> {
         self.decoded
             .set_icc_profile(Some(Bytes::from_static(&SRGB_IEC)));
