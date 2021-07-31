@@ -10,7 +10,6 @@ use std::{
 };
 
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
-    println!("processint dir input: {}", dir);
     let mut counter = Counter::new();
     if !path_is_dir(dir) {
         return Err(custom_err::from("input is not a dir"))
@@ -74,7 +73,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                 //only QSS37 series & above can handle AdobeRGB correctly
                 IccpType::AdobeRGB => {counter.adobe_rgb += 1;} //if ALLOW_ADOBE_RGB => do nothing, else convert
                 IccpType::IECSrgb => {counter.iec_srgb += 1;} 
-                IccpType::Other => {counter.other += 1;} //do nothing
+                IccpType::Other => {counter.other += 1;}//todo convert iccp
                 //in this case need to set IEC_sRGB instead because 
                 //those can't be interpreted correctly by the Noritsu QSS software:
                 IccpType::OtherSrgb | IccpType::GoogleSrgb => {

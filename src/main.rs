@@ -1,5 +1,3 @@
-// extern crate lettre;
-// extern crate lettre_email;
 #![feature(backtrace)]
 extern crate lettre;
 
@@ -22,10 +20,6 @@ use process::*;
 use std::env;
 use std::path::Path;
 pub use static_iecsrgb::*;
-// pub use lettre;
-// pub use lettre_email;
-
-//use mailer;
 
 pub static JPEG_QUALITY: u8 = 90;
 pub static MANAGEABLE_FILE_EXTENSIONS: [&str; 4] = ["jpg", "tiff", "jpeg", "webp"];

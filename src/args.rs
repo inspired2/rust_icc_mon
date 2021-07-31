@@ -8,13 +8,8 @@ pub struct ArgsInput {
 }
 impl ArgsInput {
     pub fn new(mut args: env::Args) -> Self {
-        println!("args: {:?}", &args);
         let exe_dir = args.nth(0).take();
-        println!("args: {:?}", &args);
         let path_option = args.nth(0).take();
-
-        println!("args: {:?}", &args);
-
         let mut options = None;
         if args.len() > 0 {
             options = args.map(|s| Some(s)).collect();
