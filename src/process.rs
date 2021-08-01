@@ -3,16 +3,18 @@ use super::CustomErr;
 use super::*;
 use counter::Counter;
 use image_meta::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
+    thread::JoinHandle,
 };
 
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
     let mut counter = Counter::new();
     if !path_is_dir(dir) {
-        return Err(custom_err::from("input is not a dir"))
+        return Err(custom_err::from("input is not a dir"));
     }
     let mut files: Vec<DirEntry> = Vec::new();
     for entry in Path::new(dir).read_dir()? {
@@ -43,10 +45,22 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
         .filter(|img| img.is_manageable())
         .collect();
 
-    for image in images {
-        let counter1 = process_image(image)?;
-        counter = counter + counter1;
-    }
+    // for image in images {
+    //     let counter1 = process_image(image)?;
+    //     counter = counter + counter1;
+    // }
+    let results: Vec<Result<Counter, CustomErr>> = images
+        .into_par_iter()
+        .map(|img| process_image(img))
+        .collect();
+
+    let (counters, errors): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
+
+    let counters: Vec<_> = counters.into_iter().map(Result::unwrap).collect();
+    let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
+    counter = counters.into_iter().fold(counter, |c1, c2| c1 + c2);
+    errors.into_iter().for_each(|err| counter.errors.push(err));
+
     Ok(counter)
 }
 pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
@@ -71,10 +85,34 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
         Some(profile) => {
             match &profile.profile_type() {
                 //only QSS37 series & above can handle AdobeRGB correctly
-                IccpType::AdobeRGB => {counter.adobe_rgb += 1;} //if ALLOW_ADOBE_RGB => do nothing, else convert
-                IccpType::IECSrgb => {counter.iec_srgb += 1;} 
-                IccpType::Other => {counter.other += 1;}//todo convert iccp
-                //in this case need to set IEC_sRGB instead because 
+                IccpType::AdobeRGB => {
+                    //#safety
+                    //allow_adobe_rgb static is mutated long before and
+                    //only once according to arguments the programm launches with
+                    if unsafe { !ALLOW_ADOBE_RGB } {
+                        img = img
+                            .convert_iccp(
+                                &profile.data,
+                                &Iccp::from_bytes(&static_iecsrgb::SRGB_IEC)?.data,
+                            )?
+                            .set_IECsRGB_profile()?;
+                    }
+                    counter.adobe_rgb += 1;
+                }
+                IccpType::IECsRGB => {
+                    counter.iec_srgb += 1;
+                }
+                IccpType::Other => {
+                    counter.other += 1;
+                    img = img
+                        .convert_iccp(
+                            &profile.data,
+                            &Iccp::from_bytes(&static_iecsrgb::SRGB_IEC)?.data,
+                        )?
+                        .set_IECsRGB_profile()?;
+                    modified_flag = true;
+                }
+                //in this case need to set IEC_sRGB instead because
                 //those can't be interpreted correctly by the Noritsu QSS software:
                 IccpType::OtherSrgb | IccpType::GoogleSrgb => {
                     counter.other_srgb += 1;
@@ -83,12 +121,12 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                 }
             }
         }
-        //if no profile present presume that profile is IECsRGB 
+        //if no profile present presume that profile is IECsRGB
         None => {
             counter.no_profile += 1;
             img = img.set_IECsRGB_profile()?;
             modified_flag = true;
-        } 
+        }
     }
 
     if modified_flag == true {
@@ -99,10 +137,10 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
     }
     Ok(counter)
 }
-pub fn process_file_inp(path: PathBuf) -> Result<(), CustomErr> {
+pub fn process_file_inp(path: PathBuf) -> Result<Counter, CustomErr> {
     let image = Image::read(path)?;
-    process_image(image)?;
-    Ok(())
+    let counter = process_image(image)?;
+    Ok(counter)
 }
 
 fn path_is_dir(input: &str) -> bool {

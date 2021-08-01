@@ -2,9 +2,9 @@
 use super::*;
 use lcms2::*;
 
-#[derive(Clone,Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum IccpType {
-    IECSrgb,
+    IECsRGB,
     AdobeRGB,
     GoogleSrgb,
     OtherSrgb,
@@ -12,7 +12,7 @@ pub enum IccpType {
 }
 
 pub struct Iccp {
-    data: Profile,
+    pub data: Profile,
     desc: IccpType,
     len: usize,
 }
@@ -35,7 +35,7 @@ impl Iccp {
                 Some(s) => {
                     let s = s.to_lowercase();
                     if s.contains("iec") && s.contains("srgb") && len > 3100 {
-                        desc = IccpType::IECSrgb;
+                        desc = IccpType::IECsRGB;
                     } else if s.contains("adobe") && s.contains("rgb") {
                         desc = IccpType::AdobeRGB;
                     } else if s.contains("srgb") && s.contains("google") {
@@ -60,17 +60,17 @@ impl Iccp {
     pub fn profile_type(&self) -> IccpType {
         self.desc.to_owned()
     }
-    pub fn _data(self) -> Profile {
-        self.data
-    }
-    pub fn _profile_size(&self) -> usize {
-        self.len
-    }
+    // pub fn _data(self) -> Profile {
+    //     self.data
+    // }
+    // pub fn _profile_size(&self) -> usize {
+    //     self.len
+    // }
     pub fn default() -> Self {
         Self {
             data: lcms2::Profile::new_srgb(),
             len: 3144,
-            desc: IccpType::IECSrgb,
+            desc: IccpType::IECsRGB,
         }
     }
     pub fn to_bytes(self) -> Bytes {
@@ -85,15 +85,14 @@ impl Iccp {
         Ok(Self {
             data: profile,
             desc,
-            len
+            len,
         })
-
     }
     pub fn from_bytes(buf: &[u8]) -> Result<Self, CustomErr> {
         let data = lcms2::Profile::new_icc(buf)?;
         let desc = iccp::qualify_profile(&data).unwrap();
         let len = buf.len();
-        Ok(Self{data, desc, len})
+        Ok(Self { data, desc, len })
     }
 }
 pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
@@ -102,7 +101,7 @@ pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
         Some(s) => {
             let s = s.to_lowercase();
             if s.contains("iec") && s.contains("srgb") {
-                desc = IccpType::IECSrgb;
+                desc = IccpType::IECsRGB;
             } else if s.contains("adobe") && s.contains("rgb") {
                 desc = IccpType::AdobeRGB;
             } else if s.contains("srgb") && s.contains("google") {
@@ -117,4 +116,3 @@ pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
         _ => return None,
     }
 }
-

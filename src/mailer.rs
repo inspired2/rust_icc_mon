@@ -1,7 +1,7 @@
-use lettre::{Message, SmtpTransport, Transport, transport::smtp::authentication::Credentials};
 use crate::custom_err;
+use lettre::{transport::smtp::authentication::Credentials, Message, SmtpTransport, Transport};
 
-use super::{EMAIL_TO, EMAIL_FROM, CustomErr};
+use super::{CustomErr, EMAIL_FROM, EMAIL_TO};
 
 pub fn send_email(m: String) -> Result<(), CustomErr> {
     let email = Message::builder()
@@ -13,12 +13,15 @@ pub fn send_email(m: String) -> Result<(), CustomErr> {
 
     let mailer = SmtpTransport::relay("smtp.yandex.ru")
         .expect("could not connect to smtp")
-        .credentials(Credentials::new("inspired2@yandex.ru".into(), "gxxwwnmetadyjtfh".into()))
+        .credentials(Credentials::new(
+            "inspired2@yandex.ru".into(),
+            "gxxwwnmetadyjtfh".into(),
+        ))
         .port(465)
         .build();
-        
+
     match mailer.send(&email) {
         Err(_e) => Err(custom_err::from("error sending email")),
-        Ok(_r) => Ok(())
+        Ok(_r) => Ok(()),
     }
 }

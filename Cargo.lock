@@ -322,7 +322,9 @@ dependencies = [
  "lettre",
  "openssl",
  "openssl-sys",
+ "rayon",
  "rexif",
+ "rgb",
  "webp",
 ]
 
@@ -900,6 +902,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49352965b70522af9085d7a8c2a6df7494713c67ac58b9af02bcff7fb4ca1483"
 dependencies = [
  "num",
+]
+
+[[package]]
+name = "rgb"
+version = "0.8.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fddb3b23626145d1776addfc307e1a1851f60ef6ca64f376bcb889697144cf0"
+dependencies = [
+ "bytemuck",
 ]
 
 [[package]]

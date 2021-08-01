@@ -1,10 +1,12 @@
+use crate::counter::Counter;
+
 use super::*;
 
 #[derive(Debug, Clone)]
 pub struct ArgsInput {
     path_option: Option<String>,
     options: Option<Vec<String>>,
-    exe_dir: Option<String>
+    exe_dir: Option<String>,
 }
 impl ArgsInput {
     pub fn new(mut args: env::Args) -> Self {
@@ -14,9 +16,14 @@ impl ArgsInput {
         if args.len() > 0 {
             options = args.map(|s| Some(s)).collect();
         }
-        Self { path_option, options,exe_dir }
+        Self {
+            path_option,
+            options,
+            exe_dir,
+        }
     }
-    pub fn process(mut self) -> Result<(), CustomErr> {
+    pub fn process(mut self) -> Result<Counter, CustomErr> {
+        let output: Counter;
         match self.options {
             Some(opt) => {
                 if opt.contains(&"adobe-allow".to_string()) {
@@ -25,12 +32,10 @@ impl ArgsInput {
                     }
                 }
                 if opt.contains(&"--all".to_string()) {
-                    let counter = process_dir_inp(&self.path_option.take().unwrap(), true)?;
-                    println!("Counter: {:?}", counter);
-                    //process all files in dir
+                    output = process_dir_inp(&self.path_option.take().unwrap(), true)?;
                 } else {
                     let path = Path::new(&self.path_option.take().unwrap()).canonicalize()?;
-                    process_file_inp(path)?
+                    output = process_file_inp(path)?
                 }
             }
 
@@ -40,11 +45,11 @@ impl ArgsInput {
                     Some(s) => {
                         //delete filename from exe_dir path str:
                         let path = Path::new(&s).parent().unwrap().canonicalize()?;
-                        process_dir_inp(path.to_str().unwrap(), true)?
+                        output = process_dir_inp(path.to_str().unwrap(), true)?
                     }
                 };
             }
         }
-        Ok(())
+        Ok(output)
     }
 }

@@ -2,9 +2,8 @@ use super::*;
 use img_parts::jpeg::Jpeg;
 use img_parts::DynImage;
 use lcms2::{Intent, PixelFormat, Profile};
+use rgb::*;
 use std::path::PathBuf;
-
-
 
 pub struct Image {
     pub decoded: img_parts::DynImage,
@@ -65,7 +64,7 @@ impl Image {
             self.decoded,
             self.path.file_name().unwrap()
         );
-        dyn_img.write_to(&mut bytes, ImageOutputFormat::Jpeg(100))?;
+        dyn_img.write_to(&mut bytes, ImageOutputFormat::Jpeg(JPEG_QUALITY))?;
         self = Image {
             decoded: DynImage::Jpeg(Jpeg::from_bytes(Bytes::from(bytes.to_owned()))?),
             path,
@@ -86,20 +85,23 @@ impl Image {
         image_dynamic.write_to(&mut write_buffer, ImageOutputFormat::Jpeg(JPEG_QUALITY))?;
         Ok(Image::from_raw(write_buffer, *self.path)?)
     }
-    pub fn _convert_iccp_and_save(self, src: &Profile, dst: &Profile) -> Result<(), CustomErr> {
+    pub fn convert_iccp(self, from: &Profile, into: &Profile) -> Result<Image, CustomErr> {
         //by now self is a JPEG image!
         let mut dynamic =
             image::load_from_memory_with_format(&self.bytes, image::ImageFormat::Jpeg)?;
-        let mut pixels = dynamic.as_mut_rgb8().unwrap();
+        let pixels = dynamic.as_mut_rgb8().unwrap().as_mut().as_rgb_mut();
         let t = lcms2::Transform::new(
-            src,
+            from,
             PixelFormat::RGB_8,
-            dst,
+            into,
             PixelFormat::RGB_8,
             Intent::RelativeColorimetric,
         )?;
-        t.transform_in_place(&mut pixels);
-        Ok(())
+        t.transform_in_place(pixels);
+        let mut image_bytes = Vec::new();
+        dynamic.write_to(&mut image_bytes, ImageFormat::Jpeg)?;
+        let img = Image::from_raw(image_bytes, *self.path)?; //save_with_format(*self.path, ImageFormat::Jpeg)?;
+        Ok(img)
     }
     #[allow(non_snake_case)]
     pub fn set_IECsRGB_profile(mut self) -> Result<Image, CustomErr> {
@@ -112,18 +114,18 @@ impl Image {
 #[derive(Debug)]
 pub struct ImageInfo {
     embedded_profile: Option<IccpType>,
-    name: String,
+    file_name: String,
 }
 impl ImageInfo {
     pub fn new(img: &Image) -> Self {
         let embedded_profile = match img.iccp() {
             Some(p) => Some(p.profile_type()),
-            None => None
+            None => None,
         };
-        let name = img.path.file_name().unwrap().to_str().unwrap().to_string();
+        let file_name = img.path.file_name().unwrap().to_str().unwrap().to_string();
         Self {
             embedded_profile,
-            name
+            file_name,
         }
     }
 }
