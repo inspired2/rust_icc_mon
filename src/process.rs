@@ -17,22 +17,16 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
         return Err(custom_err::from("input is not a dir"));
     }
     let mut files: Vec<DirEntry> = Vec::new();
-    for entry in Path::new(dir).read_dir()? {
-        match entry {
-            Ok(e) => {
-                if recurse && path_is_dir(e.path().to_str().unwrap()) {
-                    counter = counter + process_dir_inp(e.path().to_str().unwrap(), true).unwrap();
-                }
+    for e in Path::new(dir).read_dir()?.flatten() {
+        if recurse && path_is_dir(e.path().to_str().unwrap()) {
+            counter = counter + process_dir_inp(e.path().to_str().unwrap(), true).unwrap();
+        }
 
-                if (&e).path().is_file()
-                    && !fs::symlink_metadata(e.path())?.file_type().is_symlink()
-                {
-                    files.push(e)
-                }
-            }
-            Err(_) => {}
+        if (&e).path().is_file() && !fs::symlink_metadata(e.path())?.file_type().is_symlink() {
+            files.push(e)
         }
     }
+
     let images: Vec<Image> = files
         .into_iter()
         .filter_map(|e| {
@@ -44,22 +38,21 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
         })
         .filter(|img| img.is_manageable())
         .collect();
-
-    // for image in images {
-    //     let counter1 = process_image(image)?;
-    //     counter = counter + counter1;
-    // }
-    let results: Vec<Result<Counter, CustomErr>> = images
-        .into_par_iter()
-        .map(|img| process_image(img))
-        .collect();
+    //using rayon par_iterator for multithreaded processing of images
+    let results: Vec<Result<Counter, CustomErr>> =
+        images.into_par_iter().map(process_image).collect();
 
     let (counters, errors): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
 
-    let counters: Vec<_> = counters.into_iter().map(Result::unwrap).collect();
-    let errors: Vec<_> = errors.into_iter().map(Result::unwrap_err).collect();
-    counter = counters.into_iter().fold(counter, |c1, c2| c1 + c2);
-    errors.into_iter().for_each(|err| counter.errors.push(err));
+    let mut counter = counters
+        .into_iter()
+        .map(Result::unwrap)
+        .fold(counter, |c1, c2| c1 + c2);
+
+    errors
+        .into_iter()
+        .map(Result::unwrap_err)
+        .for_each(|err| counter.errors.push(err));
 
     Ok(counter)
 }
@@ -69,10 +62,11 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
     let mut extension_changed = false;
     let mut modified_flag = false;
     let mut counter = Counter::new();
+    let old_exif = img.decoded.exif();
 
     match img.img_format() {
-        //if jpeg => no conversion needed
-        Some(ImageFormat::Jpeg) => {}
+        //if jpeg || tiff => no conversion needed
+        Some(ImageFormat::Jpeg) | Some(ImageFormat::Tiff) => {}
         Some(_) => {
             img = img.convert_format()?;
             modified_flag = true;
@@ -87,8 +81,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                 //only QSS37 series & above can handle AdobeRGB correctly
                 IccpType::AdobeRGB => {
                     //#safety
-                    //allow_adobe_rgb static is mutated long before and
-                    //only once according to arguments the programm launches with
+                    //allow_adobe_rgb static is mutated only once at startup
                     if unsafe { !ALLOW_ADOBE_RGB } {
                         img = img
                             .convert_iccp(
@@ -114,6 +107,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                 }
                 //in this case need to set IEC_sRGB instead because
                 //those can't be interpreted correctly by the Noritsu QSS software:
+                //no conversion needed as those are basically identical
                 IccpType::OtherSrgb | IccpType::GoogleSrgb => {
                     counter.other_srgb += 1;
                     img = img.set_IECsRGB_profile()?;
@@ -121,7 +115,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                 }
             }
         }
-        //if no profile present presume that profile is IECsRGB
+        //if no color profile present presume that profile is IECsRGB
         None => {
             counter.no_profile += 1;
             img = img.set_IECsRGB_profile()?;
@@ -129,7 +123,8 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
         }
     }
 
-    if modified_flag == true {
+    if modified_flag {
+        img.decoded.set_exif(old_exif);
         img.save()?;
     }
     if extension_changed {

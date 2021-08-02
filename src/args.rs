@@ -10,11 +10,11 @@ pub struct ArgsInput {
 }
 impl ArgsInput {
     pub fn new(mut args: env::Args) -> Self {
-        let exe_dir = args.nth(0).take();
-        let path_option = args.nth(0).take();
+        let exe_dir = args.next().take();
+        let path_option = args.next().take();
         let mut options = None;
         if args.len() > 0 {
-            options = args.map(|s| Some(s)).collect();
+            options = args.map(Some).collect();
         }
         Self {
             path_option,

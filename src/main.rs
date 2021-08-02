@@ -17,7 +17,7 @@ use iccp::*;
 use image_meta::*;
 use my_image::*;
 use process::*;
-pub use static_iecsrgb::*;
+use static_iecsrgb::SRGB_IEC;
 use std::env;
 use std::path::Path;
 
@@ -31,17 +31,13 @@ fn main() -> Result<(), CustomErr> {
     let args = ArgsInput::new(env::args());
     match args.clone().process() {
         Err(e) => {
-            let kind = e.source();
-            let trace = match kind {
-                Some(e) => Some(e.backtrace().unwrap()),
-                None => None,
-            };
+            let err_trace = e.source().map(|e| e.backtrace().unwrap());
             println!("an error occured; sending report to {:?}", EMAIL_TO);
             mailer::send_email(format! {"an error occured while processing image\n
-            arguments: {:?}. Backtrace: {:?}", args ,&trace})?;
+            arguments: {:?}. Backtrace: {:?}", args ,&err_trace})?;
         }
         Ok(c) => {
-            println!("Processing complete.\nHere are the results: {:?}", c);
+            println!("Processing complete.\nHere are the results: {:#?}", c);
         }
     }
     Ok(())

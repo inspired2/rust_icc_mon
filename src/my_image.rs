@@ -74,16 +74,16 @@ impl Image {
     }
     pub fn convert_format(self) -> Result<Image, CustomErr> {
         if let Some(ImageFormat::WebP) = self.img_format() {
-            return Ok(self.convert_webp_to_jpeg()?);
+            return self.convert_webp_to_jpeg();
         }
-        Ok(self.convert_to_jpeg()?)
+        self.convert_to_jpeg()
     }
     pub fn convert_to_jpeg(self) -> Result<Image, CustomErr> {
         let image_dynamic = //safe to unwrap here as we checked for none earlier from calling fn
         image::load_from_memory_with_format(&self.bytes, self.img_format().unwrap())?;
         let mut write_buffer: Vec<u8> = Vec::with_capacity(self.bytes.len());
         image_dynamic.write_to(&mut write_buffer, ImageOutputFormat::Jpeg(JPEG_QUALITY))?;
-        Ok(Image::from_raw(write_buffer, *self.path)?)
+        Image::from_raw(write_buffer, *self.path)
     }
     pub fn convert_iccp(self, from: &Profile, into: &Profile) -> Result<Image, CustomErr> {
         //by now self is a JPEG image!
@@ -118,10 +118,7 @@ pub struct ImageInfo {
 }
 impl ImageInfo {
     pub fn new(img: &Image) -> Self {
-        let embedded_profile = match img.iccp() {
-            Some(p) => Some(p.profile_type()),
-            None => None,
-        };
+        let embedded_profile = img.iccp().map(|p| p.profile_type());
         let file_name = img.path.file_name().unwrap().to_str().unwrap().to_string();
         Self {
             embedded_profile,

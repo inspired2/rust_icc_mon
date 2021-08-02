@@ -51,10 +51,10 @@ impl Iccp {
                         data: profile,
                     })
                 }
-                _ => return None,
+                _ => None,
             }
         } else {
-            return None;
+            None
         }
     }
     pub fn profile_type(&self) -> IccpType {
@@ -73,7 +73,7 @@ impl Iccp {
             desc: IccpType::IECsRGB,
         }
     }
-    pub fn to_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Bytes {
         let profile = self.data;
         Bytes::from(profile.icc().unwrap())
     }
@@ -113,6 +113,6 @@ pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
             }
             Some(desc)
         }
-        _ => return None,
+        _ => None,
     }
 }
