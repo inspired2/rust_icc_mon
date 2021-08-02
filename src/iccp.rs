@@ -60,16 +60,11 @@ impl Iccp {
     pub fn profile_type(&self) -> IccpType {
         self.desc.to_owned()
     }
-    // pub fn _data(self) -> Profile {
-    //     self.data
-    // }
-    // pub fn _profile_size(&self) -> usize {
-    //     self.len
-    // }
+
     pub fn default() -> Self {
         Self {
-            data: lcms2::Profile::new_srgb(),
-            len: 3144,
+            data: lcms2::Profile::new_icc(&SRGB_IEC).expect("unable to read static iec_srgb"),
+            len: SRGB_IEC.len(),
             desc: IccpType::IECsRGB,
         }
     }
