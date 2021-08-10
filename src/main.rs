@@ -19,10 +19,11 @@ use my_image::*;
 use process::*;
 use static_iecsrgb::SRGB_IEC;
 use std::env;
+use std::io::stdin;
 use std::path::Path;
 
 pub static JPEG_QUALITY: u8 = 90;
-pub static MANAGEABLE_FILE_EXTENSIONS: [&str; 4] = ["jpg", "tiff", "jpeg", "webp"];
+pub static MANAGEABLE_FILE_EXTENSIONS: [&str; 5] = ["jpg", "tiff", "jpeg", "webp", "tif"];
 pub static EMAIL_TO: &str = "astrafotovl@yandex.ru";
 pub static EMAIL_FROM: &str = "inspired2@yandex.ru";
 pub static mut ALLOW_ADOBE_RGB: bool = false;
@@ -39,6 +40,12 @@ fn main() -> Result<(), CustomErr> {
         Ok(c) => {
             println!("Processing complete.\nHere are the results: {:#?}", c);
         }
+    }
+    println!("нажмите любую клавишу, чтобы выйти");
+    let buf = &mut String::new();
+    loop {
+        let _input = stdin().read_line(buf);
+        if buf.len() > 0 {break}
     }
     Ok(())
 }

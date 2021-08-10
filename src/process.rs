@@ -1,14 +1,11 @@
-#![allow(unused)]
-use super::CustomErr;
+//#![allow(unused)]
 use super::*;
 use counter::Counter;
 use image_meta::*;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     fs::{self, DirEntry},
-    io,
     path::{Path, PathBuf},
-    thread::JoinHandle,
 };
 
 pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
@@ -33,10 +30,11 @@ pub fn process_dir_inp(dir: &str, recurse: bool) -> Result<Counter, CustomErr> {
             if let Ok(image) = Image::read(e.path()) {
                 Some(image)
             } else {
+                println!{"cannot parse image from: {:?}", e.path()};
                 None
             }
         })
-        .filter(|img| img.is_manageable())
+        .filter(Image::is_manageable)
         .collect();
     //using rayon par_iterator for multithreaded processing of images
     let results: Vec<Result<Counter, CustomErr>> =
@@ -60,7 +58,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
     println!("processing image {:?}", ImageInfo::new(&img));
     let old_path = img.path.to_owned();
     let mut extension_changed = false;
-    let mut modified_flag = false;
+    let mut was_modified = false;
     let mut counter = Counter::new();
     let old_exif = img.decoded.exif();
 
@@ -69,7 +67,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
         Some(ImageFormat::Jpeg) | Some(ImageFormat::Tiff) => {}
         Some(_) => {
             img = img.convert_format()?;
-            modified_flag = true;
+            was_modified = true;
             extension_changed = true;
         }
         None => return Err(custom_err::from("unknown image format")),
@@ -89,6 +87,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                                 &Iccp::from_bytes(&static_iecsrgb::SRGB_IEC)?.data,
                             )?
                             .set_IECsRGB_profile()?;
+                            was_modified = true;
                     }
                     counter.adobe_rgb += 1;
                 }
@@ -103,15 +102,15 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
                             &Iccp::from_bytes(&static_iecsrgb::SRGB_IEC)?.data,
                         )?
                         .set_IECsRGB_profile()?;
-                    modified_flag = true;
+                    was_modified = true;
                 }
                 //in this case need to set IEC_sRGB instead because
                 //those can't be interpreted correctly by the Noritsu QSS software:
-                //no conversion needed as those are basically identical
+                //no conversion needed as they are basically identical
                 IccpType::OtherSrgb | IccpType::GoogleSrgb => {
                     counter.other_srgb += 1;
                     img = img.set_IECsRGB_profile()?;
-                    modified_flag = true;
+                    was_modified = true;
                 }
             }
         }
@@ -119,11 +118,11 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
         None => {
             counter.no_profile += 1;
             img = img.set_IECsRGB_profile()?;
-            modified_flag = true;
+            was_modified = true;
         }
     }
 
-    if modified_flag {
+    if was_modified {
         img.decoded.set_exif(old_exif);
         img.save()?;
     }

@@ -26,7 +26,7 @@ impl ArgsInput {
         let output: Counter;
         match self.options {
             Some(opt) => {
-                if opt.contains(&"adobe-allow".to_string()) {
+                if opt.contains(&"allow-adobe".to_string()) {
                     unsafe {
                         ALLOW_ADOBE_RGB = true;
                     }

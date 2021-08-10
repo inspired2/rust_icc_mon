@@ -2,10 +2,9 @@ use super::*;
 pub use image::{EncodableLayout, ImageFormat, ImageOutputFormat};
 
 pub use img_parts::{Bytes, ImageEXIF, ImageICC};
-use std::fs;
-use std::path::*;
 
 pub trait Meta {
+    
     fn get_metadata(&self) -> Option<rexif::ExifData>;
     fn embedded_profile_bytes(&self) -> Option<img_parts::Bytes>;
     fn is_manageable(&self) -> bool;
@@ -37,10 +36,6 @@ impl Meta for Image {
     }
 }
 
-pub fn read_to_buf(path: &Path) -> Result<Vec<u8>, CustomErr> {
-    let buffer = fs::read(&*path)?;
-    Ok(buffer)
-}
 // pub fn print_all_exif_tags(meta: &Metadata) {
 //     match meta.get_exif_tags() {
 //         Ok(tags_vec) => tags_vec.iter().for_each(|tag| println!("tag: {}", tag)),

@@ -18,45 +18,21 @@ pub struct Iccp {
 }
 impl Iccp {
     pub fn new(image: &Image) -> Option<Self> {
+        
         let profile_bytes = image.embedded_profile_bytes();
-        let desc: IccpType;
-        let len: usize;
-        let data: Option<Profile>;
-        match profile_bytes {
-            Some(bytes) => {
-                data = Profile::new_icc(&bytes[..]).ok();
-                len = bytes.len();
-            }
-            _ => return None,
-        }
+        if profile_bytes.is_none() { return None }
+        let profile_bytes = profile_bytes.unwrap();
 
-        if let Some(profile) = data {
-            match profile.info(InfoType::Description, Locale::none()) {
-                Some(s) => {
-                    let s = s.to_lowercase();
-                    if s.contains("iec") && s.contains("srgb") && len > 3100 {
-                        desc = IccpType::IECsRGB;
-                    } else if s.contains("adobe") && s.contains("rgb") {
-                        desc = IccpType::AdobeRGB;
-                    } else if s.contains("srgb") && s.contains("google") {
-                        desc = IccpType::GoogleSrgb;
-                    } else if s.contains("srgb") {
-                        desc = IccpType::OtherSrgb;
-                    } else {
-                        desc = IccpType::Other;
-                    }
-                    Some(Self {
-                        desc,
-                        len,
-                        data: profile,
-                    })
-                }
-                _ => None,
-            }
-        } else {
-            None
-        }
+        let len = profile_bytes.len();
+        let data = iccp_from_bytes(profile_bytes);
+
+        if data.is_none() { return None }
+        let data = data.unwrap();
+
+        let desc = qualify_profile(&data);
+        Some(Self{ desc,len, data})
     }
+
     pub fn profile_type(&self) -> IccpType {
         self.desc.to_owned()
     }
@@ -76,7 +52,7 @@ impl Iccp {
         let reader = std::fs::read(path)?;
         let len = reader.len();
         let profile = Profile::new_icc(&reader)?;
-        let desc = qualify_profile(&profile).unwrap();
+        let desc = qualify_profile(&profile);
         Ok(Self {
             data: profile,
             desc,
@@ -85,29 +61,31 @@ impl Iccp {
     }
     pub fn from_bytes(buf: &[u8]) -> Result<Self, CustomErr> {
         let data = lcms2::Profile::new_icc(buf)?;
-        let desc = iccp::qualify_profile(&data).unwrap();
+        let desc = iccp::qualify_profile(&data);
         let len = buf.len();
         Ok(Self { data, desc, len })
     }
 }
-pub fn qualify_profile(p: &Profile) -> Option<IccpType> {
-    let desc: IccpType;
+fn qualify_profile(p: &Profile) -> IccpType {
     match p.info(InfoType::Description, Locale::none()) {
         Some(s) => {
             let s = s.to_lowercase();
             if s.contains("iec") && s.contains("srgb") {
-                desc = IccpType::IECsRGB;
+                IccpType::IECsRGB
             } else if s.contains("adobe") && s.contains("rgb") {
-                desc = IccpType::AdobeRGB;
+                IccpType::AdobeRGB
             } else if s.contains("srgb") && s.contains("google") {
-                desc = IccpType::GoogleSrgb;
+                IccpType::GoogleSrgb
             } else if s.contains("srgb") {
-                desc = IccpType::OtherSrgb;
+                IccpType::OtherSrgb
             } else {
-                desc = IccpType::Other;
+                IccpType::Other
             }
-            Some(desc)
-        }
-        _ => None,
+        },
+        None => IccpType::Other
     }
+}
+
+fn iccp_from_bytes(profile_bytes: Bytes) -> Option<Profile> {
+    Profile::new_icc(&profile_bytes[..]).ok()
 }

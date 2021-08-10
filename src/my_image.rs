@@ -3,7 +3,7 @@ use img_parts::jpeg::Jpeg;
 use img_parts::DynImage;
 use lcms2::{Intent, PixelFormat, Profile};
 use rgb::*;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 pub struct Image {
     pub decoded: img_parts::DynImage,
@@ -29,7 +29,7 @@ impl Image {
     }
 
     pub fn read(path: PathBuf) -> Result<Self, CustomErr> {
-        let buffer = read_to_buf(&path).unwrap();
+        let buffer = read_to_buf(&path)?;
         let bytes = Bytes::from(buffer);
         if let Some(decoded) = DynImage::from_bytes(bytes.to_owned()).unwrap() {
             //let decoded = decode_jpeg(bytes.to_owned()).unwrap();
@@ -59,11 +59,6 @@ impl Image {
         let mut path = self.path.to_owned();
         path.set_extension("jpeg");
         let mut bytes = Vec::new();
-        println!(
-            "dyn image: {:?}, path: {:?}",
-            self.decoded,
-            self.path.file_name().unwrap()
-        );
         dyn_img.write_to(&mut bytes, ImageOutputFormat::Jpeg(JPEG_QUALITY))?;
         self = Image {
             decoded: DynImage::Jpeg(Jpeg::from_bytes(Bytes::from(bytes.to_owned()))?),
@@ -89,7 +84,7 @@ impl Image {
         //by now self is a JPEG image!
         let mut dynamic =
             image::load_from_memory_with_format(&self.bytes, image::ImageFormat::Jpeg)?;
-        let pixels = dynamic.as_mut_rgb8().unwrap().as_mut().as_rgb_mut();
+        let pixels = dynamic.as_mut_rgb8().unwrap().as_rgb_mut();
         let t = lcms2::Transform::new(
             from,
             PixelFormat::RGB_8,
@@ -125,4 +120,8 @@ impl ImageInfo {
             file_name,
         }
     }
+}
+fn read_to_buf(path: &Path) -> Result<Vec<u8>, CustomErr> {
+    let buffer = fs::read(&*path)?;
+    Ok(buffer)
 }
