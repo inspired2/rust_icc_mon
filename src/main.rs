@@ -41,7 +41,7 @@ fn main() -> Result<(), CustomErr> {
             println!("Processing complete.\nHere are the results: {:#?}", c);
         }
     }
-    println!("нажмите любую клавишу, чтобы выйти");
+    println!("нажмите ENTER, чтобы выйти");
     let buf = &mut String::new();
     loop {
         let _input = stdin().read_line(buf);
