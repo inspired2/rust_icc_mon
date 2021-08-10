@@ -124,6 +124,7 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
 
     if was_modified {
         img.decoded.set_exif(old_exif);
+        //todo fix errors on write protection
         img.save()?;
     }
     if extension_changed {
