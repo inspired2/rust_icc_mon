@@ -29,7 +29,7 @@ impl Iccp {
         if data.is_none() { return None }
         let data = data.unwrap();
 
-        let desc = qualify_profile(&data);
+        let desc = qualify_profile(&data, len);
         Some(Self{ desc,len, data})
     }
 
@@ -52,7 +52,7 @@ impl Iccp {
         let reader = std::fs::read(path)?;
         let len = reader.len();
         let profile = Profile::new_icc(&reader)?;
-        let desc = qualify_profile(&profile);
+        let desc = qualify_profile(&profile, len);
         Ok(Self {
             data: profile,
             desc,
@@ -61,16 +61,16 @@ impl Iccp {
     }
     pub fn from_bytes(buf: &[u8]) -> Result<Self, CustomErr> {
         let data = lcms2::Profile::new_icc(buf)?;
-        let desc = iccp::qualify_profile(&data);
         let len = buf.len();
+        let desc = iccp::qualify_profile(&data, len);
         Ok(Self { data, desc, len })
     }
 }
-fn qualify_profile(p: &Profile) -> IccpType {
+fn qualify_profile(p: &Profile, len: usize) -> IccpType {
     match p.info(InfoType::Description, Locale::none()) {
         Some(s) => {
             let s = s.to_lowercase();
-            if s.contains("iec") && s.contains("srgb") {
+            if s.contains("iec") && s.contains("srgb") && len != 3144 {
                 IccpType::IECsRGB
             } else if s.contains("adobe") && s.contains("rgb") {
                 IccpType::AdobeRGB
