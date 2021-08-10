@@ -70,7 +70,7 @@ fn qualify_profile(p: &Profile, len: usize) -> IccpType {
     match p.info(InfoType::Description, Locale::none()) {
         Some(s) => {
             let s = s.to_lowercase();
-            if s.contains("iec") && s.contains("srgb") && len != 3144 {
+            if s.contains("iec") && s.contains("srgb") && len == 3144 {
                 IccpType::IECsRGB
             } else if s.contains("adobe") && s.contains("rgb") {
                 IccpType::AdobeRGB
