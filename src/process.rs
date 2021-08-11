@@ -122,13 +122,13 @@ pub fn process_image(mut img: Image) -> Result<Counter, CustomErr> {
         }
     }
 
-    if was_modified {
+    if (was_modified && extension_changed) || (!was_modified && extension_changed){
         img.decoded.set_exif(old_exif);
-        //todo fix errors on write protection
-        img.save()?;
-    }
-    if extension_changed {
         fs::remove_file(*old_path)?;
+        img.save()?;
+    } else if was_modified && !extension_changed {
+        img.decoded.set_exif(old_exif);
+        img.overwrite()?;
     }
     Ok(counter)
 }

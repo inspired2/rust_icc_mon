@@ -3,7 +3,7 @@ use img_parts::jpeg::Jpeg;
 use img_parts::DynImage;
 use lcms2::{Intent, PixelFormat, Profile};
 use rgb::*;
-use std::{fs, path::PathBuf};
+use std::{fs::{self, OpenOptions}, io::Write, path::PathBuf};
 
 pub struct Image {
     pub decoded: img_parts::DynImage,
@@ -46,6 +46,11 @@ impl Image {
 
     pub fn save(self) -> Result<(), CustomErr> {
         let file = std::fs::File::create(*self.path)?;
+        DynImage::encoder(self.decoded).write_to(file)?;
+        Ok(())
+    }
+    pub fn overwrite(self) -> Result<(), CustomErr> {
+        let file = OpenOptions::new().write(true).open(&*self.path)?;
         DynImage::encoder(self.decoded).write_to(file)?;
         Ok(())
     }
