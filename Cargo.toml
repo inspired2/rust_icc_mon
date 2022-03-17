@@ -1,8 +1,9 @@
 [package]
 name = "icc"
 version = "0.1.0"
-authors = ["root"]
+authors = ["Alexander Tchepournov"]
 edition = "2018"
+license = "MIT"
 [dependencies]
 rgb = "0.8.27"
 rayon = "1.5.1"
